@@ -9,6 +9,9 @@ pipx.uvx = true
 
 [env]
 SAM_CLI_TELEMETRY = "0"
+# Opts in to SAM's python-uv beta for every sam command, including --config-env stages that don't set beta_features.
+# The AWS guide names SAM_CLI_BETA_PYTHON_UV, but SAM CLI 1.170.0 ignores that and reads this name.
+SAM_CLI_BETA_UV_PACKAGE_MANAGER = "1"
 
 [tasks.install]
 description = "Create the function's virtualenv with its dev tools"
@@ -45,11 +48,17 @@ description = "Build, then serve the API locally on http://127.0.0.1:3000 (needs
 depends = ["build"]
 run = "sam local start-api"
 
+[tasks.sync]
+description = "Sync code changes to the dev stack as you save (sam sync --watch)"
+run = "sam sync"
+
 [tasks.deploy]
-description = "Build and deploy the stack (asks for settings the first time)"
+description = "Build and deploy a stage: mise run deploy dev|test|stage|prod"
+usage = 'arg "<stage>" help="Stage to deploy" { choices "dev" "test" "stage" "prod" }'
 depends = ["build"]
-run = "sam deploy --guided"
+run = "sam deploy --config-env ${usage_stage}"
 
 [tasks.delete]
-description = "Delete the deployed stack"
-run = "sam delete"
+description = "Delete a stage's stack: mise run delete dev|test|stage|prod"
+usage = 'arg "<stage>" help="Stage to delete" { choices "dev" "test" "stage" "prod" }'
+run = "sam delete --config-env ${usage_stage}"

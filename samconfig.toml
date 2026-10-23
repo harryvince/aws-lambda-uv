@@ -1,7 +1,11 @@
+# One stack per stage, all built from the same template:
+#   sam deploy --config-env dev|test|stage|prod   (or: mise run deploy <stage>)
+# SAM doesn't merge [default] into other environments, so each stage lists its own deploy settings.
+# To deploy a stage to its own AWS account, add profile = "<profile>" (and region) to that stage's section.
 version = 0.1
 
 [default.global.parameters]
-stack_name = "aws-lambda-uv"
+stack_name = "aws-lambda-uv-dev"
 
 [default.build.parameters]
 # The python-uv build method is a SAM beta feature, so opt in here rather than answering a prompt on every build.
@@ -9,13 +13,61 @@ beta_features = true
 cached = true
 parallel = true
 
-[default.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
-confirm_changeset = true
-resolve_s3 = true
+[default.sync.parameters]
+beta_features = true
+stack_name = "aws-lambda-uv-dev"
+parameter_overrides = "Stage=dev"
+watch = true
 
 [default.local_invoke.parameters]
 beta_features = true
+parameter_overrides = "Stage=dev"
 
 [default.local_start_api.parameters]
 beta_features = true
+parameter_overrides = "Stage=dev"
+
+[dev.deploy.parameters]
+stack_name = "aws-lambda-uv-dev"
+parameter_overrides = "Stage=dev"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = false
+fail_on_empty_changeset = false
+
+[test.deploy.parameters]
+stack_name = "aws-lambda-uv-test"
+parameter_overrides = "Stage=test"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = false
+fail_on_empty_changeset = false
+
+[stage.deploy.parameters]
+stack_name = "aws-lambda-uv-stage"
+parameter_overrides = "Stage=stage"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = true
+fail_on_empty_changeset = false
+
+[prod.deploy.parameters]
+stack_name = "aws-lambda-uv-prod"
+parameter_overrides = "Stage=prod"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+# Always show the change set and ask before touching prod.
+confirm_changeset = true
+fail_on_empty_changeset = false
+
+[dev.delete.parameters]
+stack_name = "aws-lambda-uv-dev"
+
+[test.delete.parameters]
+stack_name = "aws-lambda-uv-test"
+
+[stage.delete.parameters]
+stack_name = "aws-lambda-uv-stage"
+
+[prod.delete.parameters]
+stack_name = "aws-lambda-uv-prod"

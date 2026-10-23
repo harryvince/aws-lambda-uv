@@ -10,11 +10,14 @@ def call(body: str | None) -> tuple[int, dict]:
 
 
 def test_greets_by_name() -> None:
-    assert call('{"name": "Ada"}') == (200, {"message": "Hello, Ada."})
+    assert call('{"name": "Ada"}') == (200, {"message": "Hello, Ada.", "stage": "local"})
 
 
 def test_greets_excitedly() -> None:
-    assert call('{"name": "Ada", "excited": true}') == (200, {"message": "Hello, Ada!"})
+    assert call('{"name": "Ada", "excited": true}') == (
+        200,
+        {"message": "Hello, Ada!", "stage": "local"},
+    )
 
 
 def test_rejects_a_missing_name() -> None:
