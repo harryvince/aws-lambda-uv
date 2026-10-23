@@ -1,0 +1,17 @@
+{
+  "Records": [
+    {
+      "messageId": "059f36b4-87a3-44ab-83d2-661975830a7d",
+      "receiptHandle": "AQEBwJnKyrHigUMZj6rYigCgxlaS3SLy0a",
+      "body": "{\"bucket\": \"aws-lambda-uv-dev-uploads\", \"key\": \"incoming/quarterly report.csv\", \"size\": 1024}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1792746000000"
+      },
+      "messageAttributes": {},
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:eu-west-2:123456789012:aws-lambda-uv-dev-jobs",
+      "awsRegion": "eu-west-2"
+    }
+  ]
+}

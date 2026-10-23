@@ -1,9 +1,9 @@
 [project]
-name = "hello-world"
+name = "greet"
 version = "0.1.0"
-description = "Example Lambda function built by AWS SAM with uv"
+description = "HTTP API: POST /greet"
 requires-python = ">=3.14"
-# Only these (and what they pull in) go into the Lambda zip.
+# Only these (and what they pull in) go into this function's zip.
 dependencies = [
   "pydantic>=2.12",
 ]
@@ -12,7 +12,6 @@ dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=8.4",
-  "ruff>=0.14",
 ]
 
 [tool.uv]

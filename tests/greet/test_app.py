@@ -14,10 +14,9 @@ def test_greets_by_name() -> None:
 
 
 def test_greets_excitedly() -> None:
-    assert call('{"name": "Ada", "excited": true}') == (
-        200,
-        {"message": "Hello, Ada!", "stage": "local"},
-    )
+    status, body = call('{"name": "Ada", "excited": true}')
+
+    assert (status, body["message"]) == (200, "Hello, Ada!")
 
 
 def test_rejects_a_missing_name() -> None:

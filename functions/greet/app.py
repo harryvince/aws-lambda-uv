@@ -8,8 +8,7 @@ from pydantic import BaseModel, Field, ValidationError
 # Set per stack by template.yaml: dev, test, stage or prod.
 STAGE = os.environ.get("STAGE", "local")
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
 
 
 class GreetRequest(BaseModel):

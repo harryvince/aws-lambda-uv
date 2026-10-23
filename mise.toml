@@ -2,6 +2,7 @@
 python = "3.14.9"
 uv = "0.13.5"
 "pipx:aws-sam-cli" = "1.170.0"
+ruff = "0.17.1"
 
 [settings]
 # Install pipx tools with uv rather than pipx.
@@ -13,40 +14,66 @@ SAM_CLI_TELEMETRY = "0"
 # The AWS guide names SAM_CLI_BETA_PYTHON_UV, but SAM CLI 1.170.0 ignores that and reads this name.
 SAM_CLI_BETA_UV_PACKAGE_MANAGER = "1"
 
+# Every directory in functions/ is a separate uv project and becomes a separate Lambda zip.
+
 [tasks.install]
-description = "Create the function's virtualenv with its dev tools"
-dir = "functions/hello_world"
-run = "uv sync --locked"
+description = "Create each function's virtualenv with its dev tools"
+run = 'for f in functions/*/; do (cd "$f" && uv sync --locked); done'
 
 [tasks.lock]
-description = "Refresh functions/hello_world/uv.lock after changing its dependencies"
-dir = "functions/hello_world"
-run = "uv lock"
+description = "Refresh every function's uv.lock after changing dependencies"
+run = 'for f in functions/*/; do (cd "$f" && uv lock); done'
 
 [tasks.test]
-description = "Run the unit tests"
-run = "uv run --project functions/hello_world --locked pytest"
+description = "Run each function's tests in that function's own environment"
+run = """
+set -e
+for f in functions/*/; do
+  name="$(basename "$f")"
+  echo "── $name"
+  PYTHONPATH="$f" uv run --project "$f" --locked pytest -q "tests/$name"
+done
+"""
 
 [tasks.lint]
 description = "Lint and check formatting"
-run = [
-  "uv run --project functions/hello_world --locked ruff check .",
-  "uv run --project functions/hello_world --locked ruff format --check .",
-]
+run = ["ruff check .", "ruff format --check ."]
 
 [tasks.build]
-description = "Build the Lambda zip with SAM's uv builder"
+description = "Build every function's zip with SAM's uv builder"
 run = "sam build"
 
 [tasks.invoke]
-description = "Build, then run the function locally in Docker with a sample API event"
+description = "Build, then run one function locally in Docker with its sample event: mise run invoke greet"
+usage = 'arg "<function>" help="Directory name in functions/" { choices "greet" "process_upload" "handle_job" "nightly_report" }'
 depends = ["build"]
-run = "sam local invoke HelloWorldFunction --event events/greet.json"
+run = """
+set -e
+# functions/process_upload ↔ ProcessUploadFunction in template.yaml
+id="$(echo "$usage_function" | awk -F_ '{ for (i = 1; i <= NF; i++) printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2) } END { print "Function" }')"
+sam local invoke "$id" --event "events/$usage_function.json"
+"""
 
 [tasks.api]
 description = "Build, then serve the API locally on http://127.0.0.1:3000 (needs Docker)"
 depends = ["build"]
 run = "sam local start-api"
+
+[tasks.remote]
+description = "Invoke a deployed function with its sample event: mise run remote dev handle_job"
+usage = """
+arg "<stage>" { choices "dev" "test" "stage" "prod" }
+arg "<function>" help="Directory name in functions/" { choices "greet" "process_upload" "handle_job" "nightly_report" }
+"""
+run = 'sam remote invoke "aws-lambda-uv-$usage_stage-$(echo "$usage_function" | tr _ -)" --event-file "events/$usage_function.json"'
+
+[tasks.logs]
+description = "Tail a deployed function's logs: mise run logs dev handle_job"
+usage = """
+arg "<stage>" { choices "dev" "test" "stage" "prod" }
+arg "<function>" help="Directory name in functions/" { choices "greet" "process_upload" "handle_job" "nightly_report" }
+"""
+run = 'sam logs --stack-name "aws-lambda-uv-$usage_stage" --name "aws-lambda-uv-$usage_stage-$(echo "$usage_function" | tr _ -)" --tail'
 
 [tasks.sync]
 description = "Sync code changes to the dev stack as you save (sam sync --watch)"

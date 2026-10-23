@@ -1,0 +1,23 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "eu-west-2",
+      "eventTime": "2026-10-23T09:00:00.000Z",
+      "eventName": "ObjectCreated:Put",
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "bucket": {
+          "name": "aws-lambda-uv-dev-uploads",
+          "arn": "arn:aws:s3:::aws-lambda-uv-dev-uploads"
+        },
+        "object": {
+          "key": "incoming/quarterly+report.csv",
+          "size": 1024,
+          "eTag": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    }
+  ]
+}

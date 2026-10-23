@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Example Python Lambda built by AWS SAM with uv
+Description: Example Python Lambdas built by AWS SAM with uv
+
+# Four functions, each started by a different trigger:
+#
+#   POST /greet ──▶ Greet
+#   file into UploadsBucket/incoming/ ──▶ ProcessUpload ──▶ JobsQueue ──▶ HandleJob
+#                                                              │ (3 failed attempts)
+#                                                              ▼
+#   every day at 06:00 UTC ──▶ NightlyReport ──reads──▶ DeadLetterQueue
 
 Parameters:
   Stage:
@@ -22,20 +30,24 @@ Globals:
     Environment:
       Variables:
         STAGE: !Ref Stage
-        LOG_LEVEL: !If [IsProd, INFO, DEBUG]
+    LoggingConfig:
+      LogFormat: JSON
+      ApplicationLogLevel: !If [IsProd, INFO, DEBUG]
 
 Resources:
-  HelloWorldFunction:
+  # ── HTTP API ────────────────────────────────────────────────────────────────
+
+  GreetFunction:
     Type: AWS::Serverless::Function
     Metadata:
       # Build with uv instead of pip. SAM reads pyproject.toml in CodeUri and installs exactly what uv.lock pins.
       BuildMethod: python-uv
     Properties:
-      FunctionName: !Sub "hello-world-${Stage}"
-      CodeUri: functions/hello_world/
+      FunctionName: !Sub "${AWS::StackName}-greet"
+      CodeUri: functions/greet/
       Handler: app.handler
       LoggingConfig:
-        LogGroup: !Ref HelloWorldLogs
+        LogGroup: !Ref GreetLogs
       Events:
         Greet:
           Type: HttpApi
@@ -43,15 +55,145 @@ Resources:
             Path: /greet
             Method: POST
 
-  HelloWorldLogs:
+  GreetLogs:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/hello-world-${Stage}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-greet"
+      RetentionInDays: !If [IsProd, 90, 7]
+
+  # ── S3 upload ──▶ queue ─────────────────────────────────────────────────────
+
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-uploads-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ProcessUploadFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python-uv
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-process-upload"
+      CodeUri: functions/process_upload/
+      Handler: app.handler
+      Environment:
+        Variables:
+          JOBS_QUEUE_URL: !Ref JobsQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt JobsQueue.QueueName
+      LoggingConfig:
+        LogGroup: !Ref ProcessUploadLogs
+      Events:
+        Upload:
+          Type: S3
+          Properties:
+            Bucket: !Ref UploadsBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: incoming/
+
+  ProcessUploadLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-process-upload"
+      RetentionInDays: !If [IsProd, 90, 7]
+
+  # ── queue ──▶ worker ────────────────────────────────────────────────────────
+
+  JobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-jobs"
+      # AWS recommends at least six times the consumer's timeout.
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-jobs-dlq"
+      MessageRetentionPeriod: 1209600 # 14 days, the maximum
+
+  HandleJobFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python-uv
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-handle-job"
+      CodeUri: functions/handle_job/
+      Handler: app.handler
+      LoggingConfig:
+        LogGroup: !Ref HandleJobLogs
+      Events:
+        Jobs:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt JobsQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+            # The handler reports failed messages one by one, so the rest of the batch isn't retried.
+            FunctionResponseTypes: [ReportBatchItemFailures]
+
+  HandleJobLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-handle-job"
+      RetentionInDays: !If [IsProd, 90, 7]
+
+  # ── schedule ────────────────────────────────────────────────────────────────
+
+  NightlyReportFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python-uv
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-nightly-report"
+      CodeUri: functions/nightly_report/
+      Handler: app.handler
+      Environment:
+        Variables:
+          DEAD_LETTER_QUEUE_URL: !Ref DeadLetterQueue
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: sqs:GetQueueAttributes
+              Resource: !GetAtt DeadLetterQueue.Arn
+      LoggingConfig:
+        LogGroup: !Ref NightlyReportLogs
+      Events:
+        Nightly:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 6 * * ? *)
+            ScheduleExpressionTimezone: UTC
+            # Only prod runs on a schedule; invoke it by hand elsewhere.
+            State: !If [IsProd, ENABLED, DISABLED]
+
+  NightlyReportLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-nightly-report"
       RetentionInDays: !If [IsProd, 90, 7]
 
 Outputs:
-  FunctionName:
-    Value: !Ref HelloWorldFunction
   GreetUrl:
     Description: 'POST a JSON body such as {"name": "Ada"} here'
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/greet"
+  UploadsBucketName:
+    Description: Put files under incoming/ to start a job
+    Value: !Ref UploadsBucket
+  JobsQueueUrl:
+    Value: !Ref JobsQueue
+  DeadLetterQueueUrl:
+    Value: !Ref DeadLetterQueue
