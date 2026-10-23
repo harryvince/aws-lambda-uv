@@ -26,7 +26,7 @@ On `sam build`, SAM finds `pyproject.toml` in `CodeUri`, then:
 
 Because uv picks wheels by platform, an `arm64` function builds on an x86_64 machine (or a Mac) without Docker. Check `.aws-sam/build/HelloWorldFunction/pydantic_core/` after a build: the `.so` is `aarch64-linux-gnu`.
 
-`python-uv` is still a SAM beta feature. `samconfig.toml` sets `beta_features = true` so `sam build` doesn't prompt every time. It needs SAM CLI 1.150 or later, and `uv` on your `PATH`.
+`python-uv` is still a SAM beta feature. `samconfig.toml` sets `beta_features = true` so `sam build` doesn't prompt every time. It needs a recent SAM CLI (this repo pins 1.170.0) and `uv` on your `PATH`.
 
 ## Layout
 
