@@ -1,0 +1,55 @@
+[tools]
+python = "3.14.9"
+uv = "0.13.5"
+"pipx:aws-sam-cli" = "1.170.0"
+
+[settings]
+# Install pipx tools with uv rather than pipx.
+pipx.uvx = true
+
+[env]
+SAM_CLI_TELEMETRY = "0"
+
+[tasks.install]
+description = "Create the function's virtualenv with its dev tools"
+dir = "functions/hello_world"
+run = "uv sync --locked"
+
+[tasks.lock]
+description = "Refresh functions/hello_world/uv.lock after changing its dependencies"
+dir = "functions/hello_world"
+run = "uv lock"
+
+[tasks.test]
+description = "Run the unit tests"
+run = "uv run --project functions/hello_world --locked pytest"
+
+[tasks.lint]
+description = "Lint and check formatting"
+run = [
+  "uv run --project functions/hello_world --locked ruff check .",
+  "uv run --project functions/hello_world --locked ruff format --check .",
+]
+
+[tasks.build]
+description = "Build the Lambda zip with SAM's uv builder"
+run = "sam build"
+
+[tasks.invoke]
+description = "Build, then run the function locally in Docker with a sample API event"
+depends = ["build"]
+run = "sam local invoke HelloWorldFunction --event events/greet.json"
+
+[tasks.api]
+description = "Build, then serve the API locally on http://127.0.0.1:3000 (needs Docker)"
+depends = ["build"]
+run = "sam local start-api"
+
+[tasks.deploy]
+description = "Build and deploy the stack (asks for settings the first time)"
+depends = ["build"]
+run = "sam deploy --guided"
+
+[tasks.delete]
+description = "Delete the deployed stack"
+run = "sam delete"

@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Example Python Lambda built by AWS SAM with uv
+
+Globals:
+  Function:
+    Runtime: python3.14
+    # arm64 is cheaper than x86_64. uv fetches arm64 wheels even on an x86_64 machine, so no Docker is needed to build.
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      # Build with uv instead of pip. SAM reads pyproject.toml in CodeUri and installs exactly what uv.lock pins.
+      BuildMethod: python-uv
+    Properties:
+      CodeUri: functions/hello_world/
+      Handler: app.handler
+      Events:
+        Greet:
+          Type: HttpApi
+          Properties:
+            Path: /greet
+            Method: POST
+
+Outputs:
+  GreetUrl:
+    Description: 'POST a JSON body such as {"name": "Ada"} here'
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/greet"

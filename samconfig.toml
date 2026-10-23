@@ -1,0 +1,21 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "aws-lambda-uv"
+
+[default.build.parameters]
+# The python-uv build method is a SAM beta feature, so opt in here rather than answering a prompt on every build.
+beta_features = true
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+
+[default.local_invoke.parameters]
+beta_features = true
+
+[default.local_start_api.parameters]
+beta_features = true

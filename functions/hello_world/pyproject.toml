@@ -1,0 +1,20 @@
+[project]
+name = "hello-world"
+version = "0.1.0"
+description = "Example Lambda function built by AWS SAM with uv"
+requires-python = ">=3.14"
+# Only these (and what they pull in) go into the Lambda zip.
+dependencies = [
+  "pydantic>=2.12",
+]
+
+# Dependency groups never reach the zip: SAM exports uv.lock with --no-default-groups.
+[dependency-groups]
+dev = [
+  "pytest>=8.4",
+  "ruff>=0.14",
+]
+
+[tool.uv]
+# This is an application, not a package to build and install.
+package = false

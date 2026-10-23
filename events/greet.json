@@ -1,0 +1,9 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /greet",
+  "rawPath": "/greet",
+  "headers": { "content-type": "application/json" },
+  "requestContext": { "http": { "method": "POST", "path": "/greet" } },
+  "body": "{\"name\": \"Ada\", \"excited\": true}",
+  "isBase64Encoded": false
+}
